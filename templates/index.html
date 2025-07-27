@@ -1,34 +1,51 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Nero Webhook Server</title>
+  <title>Nero Image Upscaler</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 40px;
-      background-color: #f5f5f5;
+      background: #f9f9f9;
       text-align: center;
     }
-    h1 {
-      color: #333;
+    form {
+      margin-top: 30px;
     }
-    .status {
-      margin-top: 20px;
+    input[type="text"] {
+      width: 60%;
       padding: 10px;
-      display: inline-block;
-      background-color: #e0ffe0;
-      color: #006600;
-      border: 1px solid #b2ffb2;
-      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .message {
+      margin-top: 20px;
+      color: green;
     }
   </style>
 </head>
 <body>
-  <h1>✅ Nero Webhook Server</h1>
-  <div class="status">
-    Listening for incoming tasks from the Nero API at <code>/webhook</code>
-  </div>
+  <h1>🖼️ Nero Image Upscaler</h1>
+
+  <form method="POST" action="/submit">
+    <input type="text" name="image_url" placeholder="Enter image URL to upscale..." required />
+    <button type="submit">Submit to Nero</button>
+  </form>
+
+  {% if submitted %}
+    <div class="message">
+      ✅ Task submitted to Nero!<br>
+      Task ID: {{ nero_response.task_id if nero_response.task_id else 'Check logs' }}
+    </div>
+  {% endif %}
 </body>
 </html>
