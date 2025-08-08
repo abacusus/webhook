@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template_string
 import psycopg2
 from dotenv import load_dotenv
 import os
+from flask_cors import CORS
 
 # Load environment variables
 load_dotenv()
@@ -9,6 +10,7 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
