@@ -1,60 +1,70 @@
-from flask import Flask, request, render_template, redirect, jsonify
-import requests
+from flask import Flask, request, jsonify, render_template_string
+import psycopg2
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
 
-# Homepage with image URL form
-@app.route('/', methods=['GET'])
-def home():
-    return render_template('index.html')
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
 
-# Route to submit image URL to Nero API
-@app.route('/submit', methods=['POST'])
-def submit():
-    image_url = request.form.get('image_url')
-
-    # Nero API setup
-    nero_api_url = "https://api.nero.com/biz/api/task"
-    api_key = "JRGKEBDP4K87Q7DBRT3FSB4B"  # Replace with your actual API key
-
-    headers = {
-        "x-neroai-api-key": api_key,
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "type": "ImageUpscaler:Standard",
-        "body": {
-            "image": image_url
-        },
-        "info": {
-            "webhook": "https://webhook-srz2.onrender.com/webhook"
-        }
-    }
-
-    response = requests.post(nero_api_url, headers=headers, json=data)
-    print("🎯 Nero Task Submitted:", response.json())
-
-    return render_template('index.html', submitted=True, nero_response=response.json())
-
-# Webhook to receive result from Nero
-@app.route('/webhook', methods=['POST'])
-def webhook():
+@app.route('/store', methods=['POST'])
+def store_links():
     data = request.get_json()
+    links = data.get('links', [])
 
-    print("✅ Webhook Triggered!")
-    print("Full Payload:", data)
+    if not links:
+        return jsonify({'error': 'No links provided'}), 400
 
-    task_id = data.get("task_id")
-    status = data.get("status")
-    result_url = data.get("result", {}).get("output")
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    print(f"🆔 Task ID: {task_id}")
-    print(f"📌 Status: {status}")
-    if result_url:
-        print(f"🖼️ Upscaled Image URL: {result_url}")
+        for link in links:
+            cur.execute("INSERT INTO links (url) VALUES (%s)", (link,))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'status': 'success', 'inserted': len(links)})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-    return jsonify({"message": "Webhook received successfully"}), 200
+@app.route('/')
+def index():
+    return '''
+    <h2>Flask App Running!</h2>
+    <p><a href="/links">View Stored Links</a></p>
+    '''
+
+@app.route('/links')
+def show_links():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT url FROM links ORDER BY id DESC")
+        links = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        return f"<p>Error: {e}</p>"
+
+    html = '''
+    <h2>Stored Links</h2>
+    <ul>
+      {% for link in links %}
+        <li><a href="{{ link[0] }}" target="_blank">{{ link[0] }}</a></li>
+      {% endfor %}
+    </ul>
+    '''
+
+    return render_template_string(html, links=links)
 
 if __name__ == '__main__':
-    app.run(deug=True)
+    app.run(debug=True)
